@@ -5,7 +5,14 @@ import (
     "net"
 )
 
-var ConnMap map[string]*net.TCPConn
+//var ConnMap map[string]*net.TCPConn
+type client struct{
+    name string
+    ssocket *net.TCPConn
+}
+
+var ConnMap []*net.TCPConn
+var clients []*client
 
 func checkErr(err error) int {
     if err != nil {
@@ -35,12 +42,14 @@ func say(tcpConn *net.TCPConn) {
         }
 
         //广播形式，向各个客户端发送数据
-        for _, conn := range ConnMap {
+        for _, conn := range clients {
+            /*
             if conn.RemoteAddr().String() == tcpConn.RemoteAddr().String() {
                 //不向数据输入的客户端发送消息
                 continue
             }
-            conn.Write(data[:total])
+            */
+            conn.ssocket.Write(data[:total])
         }
     }
 }
@@ -52,14 +61,17 @@ func main() {
         map 定义完后，还要make? (哪些数据类型定义完后，还要make?)
         http://stackoverflow.com/questions/27267900/runtime-error-assignment-to-entry-in-nil-map
     */
-    ConnMap = make(map[string]*net.TCPConn)
+    //ConnMap = make(map[string]*net.TCPConn)
+    //var ConnMap make([]net.TCPConn, 11)
+    
 
     for {
 
         tcpConn, _ := tcpListener.AcceptTCP()
         defer tcpConn.Close()
-
-        ConnMap[tcpConn.RemoteAddr().String()] = tcpConn
+        //ConnMap=append(ConnMap,tcpConn)
+        //ConnMap[tcpConn.RemoteAddr().String()] = tcpConn
+        clients=append(clients,&client{tcpConn.RemoteAddr().String(),tcpConn})
         fmt.Println("连接的客服端信息:", tcpConn.RemoteAddr().String())
 
         go say(tcpConn)
