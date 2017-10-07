@@ -4,12 +4,11 @@ import (
     "fmt"
     "net"
     "os"
+    "bufio"
 )
 
-//定义通道
 var ch chan int = make(chan int)
 
-//定义昵称
 var nickname string
 
 func reader(conn *net.TCPConn) {
@@ -40,22 +39,26 @@ func main() {
 
     go reader(conn)
 
-    fmt.Println("请输入昵称")
+    reader := bufio.NewReader(os.Stdin)
+    fmt.Println("please enter your name")
+    nickname, _ := reader.ReadString('\n')
+    //fmt.Scanln(&nickname)
 
-    fmt.Scanln(&nickname)
-
-    fmt.Println("你的昵称为:", nickname)
+    fmt.Println("your name is :", nickname)
 
     for {
-        var msg string
-        fmt.Scanln(&msg)
-        b := []byte("<" + nickname + ">" + "说:" + msg)
+        //var msg string
+        //fmt.Scanln(&msg)
+        msg, _ := reader.ReadString('\n')
+        //b := []byte("<" + nickname + ">" + "said: " + msg)
+        b := []byte(msg)
+
         conn.Write(b)
 
         //select 为非阻塞的
         select {
         case <-ch:
-            fmt.Println("Server错误!请重新连接!")
+            fmt.Println("Server error, please reconnect!")
             os.Exit(1)
         default:
             //不加default的话，那么 <-ch 会阻塞for， 下一个输入就没有法进行

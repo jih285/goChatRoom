@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "net"
+    "strings"
 )
 
 //var ConnMap map[string]*net.TCPConn
@@ -10,46 +11,75 @@ type client struct{
     name string
     ssocket *net.TCPConn
 }
+type chatroom struct{
+    name string
+    roomMember []*client
+}
 
-var ConnMap []*net.TCPConn
-var clients []*client
+//var ConnMap []*net.TCPConn
+var clients []*client   //store all of the clients
+var rooms map[string]*chatroom
+
 
 func checkErr(err error) int {
     if err != nil {
         if err.Error() == "EOF" {
-            //用户退出
-            fmt.Println("用户推出了")
+            fmt.Println("client quit")
             return 0
         }
-        fmt.Println("错误")
+        fmt.Println("error")
         return -1
     }
     return 1
 }
 
-func say(tcpConn *net.TCPConn) {
+func say(myclient *client) {
     for {
-        //读取一个客户端发送过来的数据
+        //fetch msg from a client
         data := make([]byte, 128)
-        total, err := tcpConn.Read(data)
+        total, err := myclient.ssocket.Read(data)
+
+        msg:=myclient.name+" said: "+string(data[:total])
+        
 
         fmt.Println(string(data[:total]), err)
+        words := strings.Fields(string(data[:total]))
 
+        switch command:=words[0]; command {
+            case "jrename":
+                myclient.name=words[1]
+            case "jcreate":
+                var members []*client
+                rooms[words[1]]=&chatroom{words[1],members}
+                fmt.Println("room: "+words[1]+" has been created")
+            case "jshowrooms":
+                RoomList:="rooms: "
+                for key,_ := range rooms{
+                    RoomList+=key+" "
+                }
+                msg=RoomList;
+
+            default:
+                // freebsd, openbsd,
+                // plan9, windows...
+            }
         flag := checkErr(err)
         if flag == 0 {
-            //退出整个循环
             break
         }
 
-        //广播形式，向各个客户端发送数据
+        bmsg:=[]byte(msg)
+        //broadcast 
         for _, conn := range clients {
             /*
-            if conn.RemoteAddr().String() == tcpConn.RemoteAddr().String() {
-                //不向数据输入的客户端发送消息
+            if conn.RemoteAddr().String() == myclient.ssocket.RemoteAddr().String() {
+                //don't send msg back to its sender
                 continue
             }
             */
-            conn.ssocket.Write(data[:total])
+            //msg:=[]byte(conn.name+" said: ")
+           // msg=append(msg,data[:total])
+            conn.ssocket.Write(bmsg)
         }
     }
 }
@@ -63,8 +93,7 @@ func main() {
     */
     //ConnMap = make(map[string]*net.TCPConn)
     //var ConnMap make([]net.TCPConn, 11)
-    
-
+    rooms = make(map[string]*chatroom)
     for {
 
         tcpConn, _ := tcpListener.AcceptTCP()
@@ -72,8 +101,8 @@ func main() {
         //ConnMap=append(ConnMap,tcpConn)
         //ConnMap[tcpConn.RemoteAddr().String()] = tcpConn
         clients=append(clients,&client{tcpConn.RemoteAddr().String(),tcpConn})
-        fmt.Println("连接的客服端信息:", tcpConn.RemoteAddr().String())
+        fmt.Println("new client from:", tcpConn.RemoteAddr().String())
 
-        go say(tcpConn)
+        go say(clients[len(clients)-1])
     }
 }
