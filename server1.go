@@ -10,6 +10,8 @@ import (
 type client struct{
     name string
     ssocket *net.TCPConn
+    currentRoom string
+    myrooms []string
 }
 type chatroom struct{
     name string
@@ -33,35 +35,97 @@ func checkErr(err error) int {
     return 1
 }
 
+func remove(s []string, i int) []string {
+    s[i] = s[len(s)-1]
+    return s[:len(s)-1]
+}
+func removeClient(s []*client, i int) []*client {
+    s[i] = s[len(s)-1]
+    return s[:len(s)-1]
+}
+
 func say(myclient *client) {
     for {
         //fetch msg from a client
         data := make([]byte, 128)
         total, err := myclient.ssocket.Read(data)
 
-        msg:=myclient.name+" said: "+string(data[:total])
+        msg:=myclient.name+" from ["+myclient.currentRoom+"] said: "+string(data[:total])
         
 
         fmt.Println(string(data[:total]), err)
         words := strings.Fields(string(data[:total]))
 
+        iscommand:=false
+
         switch command:=words[0]; command {
             case "jrename":
                 myclient.name=words[1]
+                msg="your name has been reset as: "+words[1]
+                iscommand=true
             case "jcreate":
                 var members []*client
                 rooms[words[1]]=&chatroom{words[1],members}
-                fmt.Println("room: "+words[1]+" has been created")
+                msg="room: "+words[1]+" has been created"
+                iscommand=true
             case "jshowrooms":
                 RoomList:="rooms: "
                 for key,_ := range rooms{
                     RoomList+=key+" "
                 }
                 msg=RoomList;
+                iscommand=true
+            case "jjoin":
+                
+                if _,ifexist:=rooms[words[1]]; ifexist {
+                    rooms[words[1]].roomMember=append(rooms[words[1]].roomMember,myclient)
+                    myclient.myrooms=append(myclient.myrooms,words[1])
+                    msg="you have join room: "+words[1]+", now you could receive msg from this room"
+                }else{
+                    msg="no such room, please check again"
+                }
+                iscommand=true
 
+            case "jswitch":
+               
+                if  _, ok := rooms[words[1]]; ok {
+                    for _,name := range myclient.myrooms{
+                        if strings.Compare(name,words[1])==0{
+                            myclient.currentRoom=words[1]
+                            msg="you have switched to room: "+words[1]+", you could say something in this room now"
+                        }else{
+                            msg="you should join this room first"
+                        }
+                    }
+                }else{
+                    msg="no such room, please check again"
+                }
+                iscommand=true
+            case "jleave":{
+                iscommand=true
+                findroom:=false
+                for i,myroom:=range myclient.myrooms{
+                    if strings.Compare(myroom,words[1])==0 {
+                        remove(myclient.myrooms,i)
+                        findroom=true
+                        for j,r := range rooms[words[1]].roomMember{
+                            if r.ssocket.RemoteAddr().String() ==myclient.ssocket.RemoteAddr().String() {
+                                rooms[words[1]].roomMember=removeClient(rooms[words[1]].roomMember,j)
+                            }
+                        }
+                    if strings.Compare(myclient.currentRoom,words[1])==0{
+                        myclient.currentRoom="none"
+                    }
+                    msg="you have left room: "+words[1]
+                    break
+                    }
+                }
+                if !findroom{
+                    msg="you have to join this room, then leave"
+                }
+            }
             default:
-                // freebsd, openbsd,
-                // plan9, windows...
+
             }
         flag := checkErr(err)
         if flag == 0 {
@@ -69,18 +133,32 @@ func say(myclient *client) {
         }
 
         bmsg:=[]byte(msg)
-        //broadcast 
-        for _, conn := range clients {
-            /*
-            if conn.RemoteAddr().String() == myclient.ssocket.RemoteAddr().String() {
-                //don't send msg back to its sender
-                continue
+
+        //send system msg to the user itself
+        if iscommand {
+            myclient.ssocket.Write(bmsg)
+        }else{
+            if strings.Compare(myclient.currentRoom, "none")!=0 {
+                for _, conn := range rooms[myclient.currentRoom].roomMember {
+                /*
+                if conn.RemoteAddr().String() == myclient.ssocket.RemoteAddr().String() {
+                    //don't send msg back to its sender
+                    continue
+                }
+                */
+                //msg:=[]byte(conn.name+" said: ")
+               // msg=append(msg,data[:total])
+                conn.ssocket.Write(bmsg)
+                }
+                
+            }else{
+                msg="you should switch to a room first"
+                bmsg:=[]byte(msg)
+                myclient.ssocket.Write(bmsg)
             }
-            */
-            //msg:=[]byte(conn.name+" said: ")
-           // msg=append(msg,data[:total])
-            conn.ssocket.Write(bmsg)
+
         }
+
     }
 }
 
@@ -100,7 +178,8 @@ func main() {
         defer tcpConn.Close()
         //ConnMap=append(ConnMap,tcpConn)
         //ConnMap[tcpConn.RemoteAddr().String()] = tcpConn
-        clients=append(clients,&client{tcpConn.RemoteAddr().String(),tcpConn})
+        //tem:=[]string
+        clients=append(clients,&client{tcpConn.RemoteAddr().String(),tcpConn,"none",[]string{}})
         fmt.Println("new client from:", tcpConn.RemoteAddr().String())
 
         go say(clients[len(clients)-1])
