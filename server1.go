@@ -179,6 +179,8 @@ func main() {
         //ConnMap=append(ConnMap,tcpConn)
         //ConnMap[tcpConn.RemoteAddr().String()] = tcpConn
         //tem:=[]string
+        welcomeMsg:="Hello welcome to Ji's chat lobby.\n users online now.\n\nYou could choose a chat room to join or create a new one.\n"+"\n\n useful commands:\n 1. jcreate [roomname]\n 2. jjoin [roomname] //receive messages from a chatroom, but can't speak\n 3. jswitch [roomname] //after join  a chatroom, you can siwtch to this room to say something\n 4. jleave [roomname]//you won't receive any message from this room\n 5. jshowrooms //show all existing rooms\n 6. jshowmyrooms //show the rooms that you join\n 7. rename [newname]";
+        tcpConn.Write([]byte(welcomeMsg))
         clients=append(clients,&client{tcpConn.RemoteAddr().String(),tcpConn,"none",[]string{}})
         fmt.Println("new client from:", tcpConn.RemoteAddr().String())
 
