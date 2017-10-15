@@ -44,11 +44,11 @@ func doEveryWeek(d time.Duration, f func(time.Time)) {
 	}
 }
 
-//time.Hour * 24 * 7
+
 func checkExpiredRoom(tt time.Time){
 	now:=time.Now()
 	for _,room := range rooms{
-		if timestample:=room.lastActive.Add(time.Second * 10); timestample.Before(now){
+		if timestample:=room.lastActive.Add(time.Hour * 24 * 7); timestample.Before(now){
 			fmt.Println(room.name+" is expired! It has been deleted!")
 			delete(rooms,room.name)
 		}else{
@@ -77,13 +77,13 @@ func say(myclient *client) {
             break
         }
 
-
-        
-
         fmt.Println(string(data[:total]), err)
         words := strings.Fields(string(data[:total]))
         iscommand:=false
         msg:=""
+        if total<3 {
+        	words=[]string{"please"}
+        }
         switch command:=words[0]; command {
             case "jrename":
                 myclient.name=words[1]
@@ -134,6 +134,7 @@ func say(myclient *client) {
                     msg="no such room, please check again"
                 }
                 iscommand=true
+            /*
             case "jcheck":{
             	iscommand=true
             	if _,ifexist:=rooms[words[1]]; ifexist {
@@ -144,6 +145,7 @@ func say(myclient *client) {
             case "jtest":{
             	checkExpiredRoom(time.Now());
             }
+            */
             case "jleave":{
                 iscommand=true
                 findroom:=false
@@ -179,6 +181,7 @@ func say(myclient *client) {
             myclient.ssocket.Write(bmsg)
         }else{
         	msg:=myclient.name+" from ["+myclient.currentRoom+"] said: "+string(data[:total])
+        	 bmsg:=[]byte(msg)
             if strings.Compare(myclient.currentRoom, "none")!=0 {
                 for _, conn := range rooms[myclient.currentRoom].roomMember {
                 /*
@@ -209,14 +212,11 @@ func say(myclient *client) {
 func main() {
     tcpAddr, _ := net.ResolveTCPAddr("tcp", "127.0.0.1:8080")
     tcpListener, _ := net.ListenTCP("tcp", tcpAddr)
-    /*
-        map 定义完后，还要make? (哪些数据类型定义完后，还要make?)
-        http://stackoverflow.com/questions/27267900/runtime-error-assignment-to-entry-in-nil-map
-    */
     //ConnMap = make(map[string]*net.TCPConn)
     //var ConnMap make([]net.TCPConn, 11)
     rooms = make(map[string]*chatroom)
-    go doEveryWeek(1*time.Second, checkExpiredRoom)
+    //check every day if any room has no active member for 7 days
+    go doEveryWeek(time.Hour * 24, checkExpiredRoom)
     for {
         tcpConn, _ := tcpListener.AcceptTCP()
         defer tcpConn.Close()
