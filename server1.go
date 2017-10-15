@@ -4,6 +4,7 @@ import (
     "fmt"
     "net"
     "strings"
+    "time"
 )
 
 //var ConnMap map[string]*net.TCPConn
@@ -17,6 +18,7 @@ type chatroom struct{
     name string
     roomMember []*client
     log string
+    lastActive time.Time
 }
 
 //var ConnMap []*net.TCPConn
@@ -34,6 +36,25 @@ func checkErr(err error) int {
         return -1
     }
     return 1
+}
+
+func doEveryWeek(d time.Duration, f func(time.Time)) {
+	for x := range time.Tick(d) {
+		f(x)
+	}
+}
+
+//time.Hour * 24 * 7
+func checkExpiredRoom(tt time.Time){
+	now:=time.Now()
+	for _,room := range rooms{
+		if timestample:=room.lastActive.Add(time.Second * 10); timestample.Before(now){
+			fmt.Println(room.name+" is expired! It has been deleted!")
+			delete(rooms,room.name)
+		}else{
+			fmt.Println(tt)
+		}
+	}
 }
 
 func remove(s []string, i int) []string {
@@ -70,7 +91,7 @@ func say(myclient *client) {
                 iscommand=true
             case "jcreate":
                 var members []*client
-                rooms[words[1]]=&chatroom{words[1],members,""}
+                rooms[words[1]]=&chatroom{words[1],members,"",time.Now()}
                 msg="room: "+words[1]+" has been created"
                 iscommand=true
             case "jshowrooms":
@@ -89,7 +110,6 @@ func say(myclient *client) {
             	}
             	iscommand=true
             case "jjoin":
-                
                 if _,ifexist:=rooms[words[1]]; ifexist {
                     rooms[words[1]].roomMember=append(rooms[words[1]].roomMember,myclient)
                     myclient.myrooms=append(myclient.myrooms,words[1])
@@ -114,6 +134,16 @@ func say(myclient *client) {
                     msg="no such room, please check again"
                 }
                 iscommand=true
+            case "jcheck":{
+            	iscommand=true
+            	if _,ifexist:=rooms[words[1]]; ifexist {
+                    
+                    fmt.Println(rooms[words[1]].lastActive)
+                }
+            }
+            case "jtest":{
+            	checkExpiredRoom(time.Now());
+            }
             case "jleave":{
                 iscommand=true
                 findroom:=false
@@ -161,7 +191,10 @@ func say(myclient *client) {
                // msg=append(msg,data[:total])
                 conn.ssocket.Write(bmsg)
                 }
+                //record chat history
                 rooms[myclient.currentRoom].log=rooms[myclient.currentRoom].log+msg+"\n"
+                //update timestample of this chat room
+                rooms[myclient.currentRoom].lastActive=time.Now()
             }else{
                 msg="you should switch to a room first"
                 bmsg:=[]byte(msg)
@@ -183,6 +216,7 @@ func main() {
     //ConnMap = make(map[string]*net.TCPConn)
     //var ConnMap make([]net.TCPConn, 11)
     rooms = make(map[string]*chatroom)
+    go doEveryWeek(1*time.Second, checkExpiredRoom)
     for {
         tcpConn, _ := tcpListener.AcceptTCP()
         defer tcpConn.Close()
@@ -193,7 +227,6 @@ func main() {
         //tcpConn.Write([]byte(welcomeMsg))
         clients=append(clients,&client{tcpConn.RemoteAddr().String(),tcpConn,"none",[]string{}})
         fmt.Println("new client from:", tcpConn.RemoteAddr().String())
-
         go say(clients[len(clients)-1])
     }
 }
