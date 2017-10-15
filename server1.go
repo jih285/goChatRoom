@@ -56,14 +56,13 @@ func say(myclient *client) {
             break
         }
 
-        msg:=myclient.name+" from ["+myclient.currentRoom+"] said: "+string(data[:total])
+
         
 
         fmt.Println(string(data[:total]), err)
         words := strings.Fields(string(data[:total]))
-
         iscommand:=false
-
+        msg:=""
         switch command:=words[0]; command {
             case "jrename":
                 myclient.name=words[1]
@@ -81,6 +80,14 @@ func say(myclient *client) {
                 }
                 msg=RoomList;
                 iscommand=true
+            case "jshowmyrooms":
+            	msg="your rooms are: "
+            	if len(myclient.myrooms)>0{
+	            	for _,myroomlist := range myclient.myrooms{
+	            		msg+=myroomlist+" "
+	            	}
+            	}
+            	iscommand=true
             case "jjoin":
                 
                 if _,ifexist:=rooms[words[1]]; ifexist {
@@ -112,7 +119,7 @@ func say(myclient *client) {
                 findroom:=false
                 for i,myroom:=range myclient.myrooms{
                     if strings.Compare(myroom,words[1])==0 {
-                        remove(myclient.myrooms,i)
+                        myclient.myrooms=remove(myclient.myrooms,i)
                         findroom=true
                         for j,r := range rooms[words[1]].roomMember{
                             if r.ssocket.RemoteAddr().String() ==myclient.ssocket.RemoteAddr().String() {
@@ -141,6 +148,7 @@ func say(myclient *client) {
         if iscommand {
             myclient.ssocket.Write(bmsg)
         }else{
+        	msg:=myclient.name+" from ["+myclient.currentRoom+"] said: "+string(data[:total])
             if strings.Compare(myclient.currentRoom, "none")!=0 {
                 for _, conn := range rooms[myclient.currentRoom].roomMember {
                 /*
