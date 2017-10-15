@@ -16,6 +16,7 @@ type client struct{
 type chatroom struct{
     name string
     roomMember []*client
+    log string
 }
 
 //var ConnMap []*net.TCPConn
@@ -70,7 +71,7 @@ func say(myclient *client) {
                 iscommand=true
             case "jcreate":
                 var members []*client
-                rooms[words[1]]=&chatroom{words[1],members}
+                rooms[words[1]]=&chatroom{words[1],members,""}
                 msg="room: "+words[1]+" has been created"
                 iscommand=true
             case "jshowrooms":
@@ -85,7 +86,7 @@ func say(myclient *client) {
                 if _,ifexist:=rooms[words[1]]; ifexist {
                     rooms[words[1]].roomMember=append(rooms[words[1]].roomMember,myclient)
                     myclient.myrooms=append(myclient.myrooms,words[1])
-                    msg="you have join room: "+words[1]+", now you could receive msg from this room"
+                    msg="you have join room: "+words[1]+", now you could receive msg from this room\n------------------chat log------------------------\n"+rooms[words[1]].log
                 }else{
                     msg="no such room, please check again"
                 }
@@ -152,7 +153,7 @@ func say(myclient *client) {
                // msg=append(msg,data[:total])
                 conn.ssocket.Write(bmsg)
                 }
-                
+                rooms[myclient.currentRoom].log=rooms[myclient.currentRoom].log+msg+"\n"
             }else{
                 msg="you should switch to a room first"
                 bmsg:=[]byte(msg)

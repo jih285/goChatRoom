@@ -43,8 +43,6 @@ func main() {
     fmt.Println("please enter your name")
     nickname, _ := reader.ReadString('\n')
     //fmt.Scanln(&nickname)
-    fmt.Println("your name is :", nickname)
-
     setNameCMD:="jrename "+nickname
     b := []byte(setNameCMD)
     conn.Write(b)
