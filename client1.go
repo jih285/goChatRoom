@@ -36,15 +36,18 @@ func main() {
 
     //为什么不能放到if之前？ err不为nil的话就是painc了 (painc 与 defer 辨析一下！！！)
     defer conn.Close()
-
     go reader(conn)
-
     reader := bufio.NewReader(os.Stdin)
+
+    fmt.Println("Hello welcome to Ji's chat lobby.\nYou could choose a chat room to join or create a new one.\n"+"useful commands:\n 1. jcreate [roomname]\n 2. jjoin [roomname] //receive messages from a chatroom, but can't speak\n 3. jswitch [roomname] //after join  a chatroom, you can siwtch to this room to say something\n 4. jleave [roomname]//you won't receive any message from this room\n 5. jshowrooms //show all existing rooms\n 6. jshowmyrooms //show the rooms that you join\n 7. rename [newname]");
     fmt.Println("please enter your name")
     nickname, _ := reader.ReadString('\n')
     //fmt.Scanln(&nickname)
-
     fmt.Println("your name is :", nickname)
+
+    setNameCMD:="jrename "+nickname
+    b := []byte(setNameCMD)
+    conn.Write(b)
 
     for {
         //var msg string
